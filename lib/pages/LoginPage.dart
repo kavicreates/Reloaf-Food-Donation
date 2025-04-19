@@ -1,8 +1,11 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Homes/OrphanageHome.dart';
+// import '';
 import '../Homes/DeliveryPartnerHome.dart';
 import '../Homes/RestaurantHome.dart';
 import '../pages/Signin.dart';
@@ -30,8 +33,8 @@ class _LoginPageState extends State<LoginPage> {
       String role=userDoc["role"];
 
       Widget homePage;
-      if(role=="Customer"){
-        homePage=CustomerHome();
+      if(role=="Orphanage"){
+        homePage=OrphanageHome();
       }
       else if(role=="DeliveryPartner"){
         homePage=DeliveryPartnerHome();
@@ -49,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title:Text("Login"),backgroundColor: Colors.yellow, centerTitle: true),
+      appBar: AppBar(title:Text("Login"),backgroundColor: Colors.deepPurpleAccent, centerTitle: true),
       body: Column(
         children: [
           TextField(controller: emailController,decoration: InputDecoration(labelText: "Email"),),
@@ -64,4 +67,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// this piece of shit want working ciz the permission was not given in the rules of firestore
+
+
+// this piece of shit want working cuz the permission was not given in the rules of firestore
