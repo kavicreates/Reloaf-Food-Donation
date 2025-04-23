@@ -5,7 +5,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Homes/OrphanageHome.dart';
-// import '';
+
+import '../Profile/DeliveryPartnerProfile.dart';
+import '../Profile/OrphanageProfile.dart';
+import '../Profile/RestaurantProfile.dart';
+
 import '../Homes/DeliveryPartnerHome.dart';
 import '../Homes/RestaurantHome.dart';
 import '../pages/Signin.dart';
@@ -32,6 +36,24 @@ class _LoginPageState extends State<LoginPage> {
       DocumentSnapshot userDoc=await _firestore.collection("users").doc(userCredential.user!.uid).get();
       String role=userDoc["role"];
 
+      //profile completion
+      User? currUser=_auth.currentUser;
+      var data=userDoc.data() as Map<String,dynamic>;
+      final isProfileComplete=data['isProfileComplete'] ?? false;
+      if(!isProfileComplete){
+        if(role=="Orphanage") {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>OrphanageProfile()));
+          return;
+        }
+        if(role=="Restaurant") {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>RestaurantProfile()));
+          return;
+        }
+        if(role=="DeliveryPartner") {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) =>DeliveryPartnerProfile()));
+          return;
+        }
+      }
       Widget homePage;
       if(role=="Orphanage"){
         homePage=OrphanageHome();

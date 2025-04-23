@@ -15,7 +15,7 @@ class _OrphanageHomeState extends State<OrphanageHome> {
   FirebaseAuth _auth = FirebaseAuth.instance;
   User? currUser;
 
-  List<String> tabs = ["Home", "History", "Tracking"];
+  List<String> tabs = ["Home", "History", "Tracking","Profile"];
   int tabindex = 0;
 
   TextEditingController reqnumcontroller = TextEditingController();
@@ -173,8 +173,8 @@ class _OrphanageHomeState extends State<OrphanageHome> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.fastfood), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.local_shipping), label: "Tracking"),
+          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: "Tracking"),
+          BottomNavigationBarItem(icon: Icon(Icons.contact_emergency),label: "Profile"),
         ],
       ),
     );

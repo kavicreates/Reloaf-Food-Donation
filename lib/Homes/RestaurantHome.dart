@@ -13,7 +13,7 @@ class _RestaurantHomeState extends State<RestaurantHome> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedIndex = 0;
 
-  final List<String> _tabs = ['Current', 'History', 'Tracking'];
+  final List<String> _tabs = ['Current', 'History', 'Tracking','Profile'];
 
   void _onTabTapped(int index) {
     setState(() {
@@ -86,7 +86,7 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                         "quantity": quantityController.text,
                         "type": selectedType,
                         "timestamp": FieldValue.serverTimestamp(),
-                        "status": "available",
+                        "status": "draft",
                       });
                       Navigator.pop(context);
                     }
@@ -106,15 +106,62 @@ class _RestaurantHomeState extends State<RestaurantHome> {
     if (user == null) {
       return const Stream.empty();
     }
-    return _firestore
+    // return _firestore
+    //     .collection("users")
+    //     .doc(user.uid)
+    //     .collection("food")
+    //     .where("status", isEqualTo: filter)
+    //     .orderBy("timestamp", descending: true)
+    //     .snapshots();
+    final ref = _firestore
         .collection("users")
         .doc(user.uid)
-        .collection("food")
-        .where("status", isEqualTo: filter)
-        .orderBy("timestamp", descending: true)
-        .snapshots();
+        .collection("food");
+
+    if (filter == "combined") {
+      return ref
+          .where("status", whereIn: ["draft", "available"])
+          .orderBy("timestamp", descending: true)
+          .snapshots();
+    } else {
+      return ref
+          .where("status", isEqualTo: filter)
+          .orderBy("timestamp", descending: true)
+          .snapshots();
+    }
   }
 
+  Widget buildProfile (BuildContext context){
+
+      final user=FirebaseAuth.instance.currentUser;
+      if(user==null) return const Center(child: Text("not logged in lil bro"),);
+      final profileObj=_firestore.collection("users").doc(user.uid).get();
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: profileObj,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const Center(child: Text("Something went wrong"));
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Center(child: Text("No profile found"));
+        }
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              const Text("Name:"),
+              Text(data['name'] ?? 'No name'),
+              // Add more fields like email, age, etc., if needed
+            ],
+          ),
+        );
+      },
+    );
+  }
   Widget buildFoodList(String filter) {
     return StreamBuilder<QuerySnapshot>(
       stream: getFoodStream(filter),
@@ -142,14 +189,50 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                 ),
                 title: Text(data["name"]),
                 subtitle: Text("${data["description"]} • Qty: ${data["quantity"]}"),
-                trailing: filter == "available"
-                    ? IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.grey),
-                  onPressed: () async {
-                    await food.reference.delete();
-                  },
-                )
-                    : null,
+                // trailing: filter == "available"
+                //     ? IconButton(
+                //   icon: const Icon(Icons.delete, color: Colors.grey),
+                //   onPressed: () async {
+                //     await food.reference.delete();
+                //   },
+                // )
+                //     : null,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (data["status"] == "draft") ...[
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.grey),
+                        onPressed: () async {
+                          await food.reference.delete();
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.lock_outline, color: Colors.blueAccent),
+                        tooltip: "Freeze Donation",
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Freeze Donation?"),
+                              content: const Text("Once frozen, this food item cannot be edited or deleted."),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                                ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Freeze")),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await food.reference.update({"status": "available"});
+                          }
+                        },
+                      ),
+                    ] else
+                      const Icon(Icons.lock, color: Colors.grey),
+                  ],
+                ),
+
               ),
             );
           },
@@ -157,19 +240,146 @@ class _RestaurantHomeState extends State<RestaurantHome> {
       },
     );
   }
+  Widget buildCombinedFoodList() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const Center(child: Text("Not logged in"));
+
+    final ref = _firestore
+        .collection("users")
+        .doc(user.uid)
+        .collection("food")
+        .orderBy("timestamp", descending: true);
+
+    final draftStream = ref.where("status", isEqualTo: "draft").snapshots();
+    final availableStream = ref.where("status", isEqualTo: "available").snapshots();
+
+    return SingleChildScrollView(
+        child:Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Expanded(
+                 StreamBuilder<QuerySnapshot>(
+                  stream: draftStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final items = snapshot.data!.docs;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text("Draft Items", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                        if (items.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text("No draft items."),
+                          ),
+                        ...items.map((doc) => buildFoodCard(doc)).toList(),
+                      ],
+                    );
+                  },
+                ),
+        // ),
+         StreamBuilder<QuerySnapshot>(
+            stream: availableStream,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final items = snapshot.data!.docs;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Available Items", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  if (items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text("No available items."),
+                    ),
+                  ...items.map((doc) => buildFoodCard(doc)).toList(),
+                ],
+              );
+            },
+          ),
+
+      ],
+    ),
+    );
+  }
+  Widget buildFoodCard(DocumentSnapshot food) {
+    final data = food.data() as Map<String, dynamic>;
+
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ListTile(
+        leading: Icon(
+          data["type"] == "Veg" ? Icons.eco : Icons.no_meals,
+          color: data["type"] == "Veg" ? Colors.green : Colors.red,
+        ),
+        title: Text(data["name"]),
+        subtitle: Text("${data["description"]} • Qty: ${data["quantity"]}"),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (data["status"] == "draft") ...[
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.grey),
+                onPressed: () async {
+                  await food.reference.delete();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.lock_outline, color: Colors.blueAccent),
+                tooltip: "Freeze Donation",
+                onPressed: () async {
+                  //add orders collection to firebase once frozen
+                  // if(FirebaseAuth.instance.currentUser!=null) {
+                  //   User? userCred = FirebaseAuth.instance.currentUser;
+                  //   FirebaseFirestore.instance.collection("orders").add({"name":""});
+                  // }
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Freeze Donation?"),
+                      content: const Text("Once frozen, this food item cannot be edited or deleted."),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                        ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Freeze")),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await food.reference.update({"status": "available"});
+                  }
+                },
+              ),
+            ] else
+              const Icon(Icons.lock, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      buildFoodList("available"),
+      buildCombinedFoodList(),
       buildFoodList("picked up"),
-      const Center(child: Text("Tracking (to be implemented)")), // Placeholder
+      // buildCombinedFoodList("combined"),
+      const Center(child: Text("Tracking (to be implemented)")),
+      // Placeholder
+      buildProfile(context),
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text("Restaurant Dashboard - ${_tabs[_selectedIndex]}", ),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: Colors.deepPurpleAccent,
         foregroundColor: Colors.white,
         centerTitle: true,
       ),
@@ -187,6 +397,7 @@ class _RestaurantHomeState extends State<RestaurantHome> {
           BottomNavigationBarItem(icon: Icon(Icons.fastfood), label: "Current"),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
           BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: "Tracking"),
+          BottomNavigationBarItem(icon: Icon(Icons.person),label: "Profile"),
         ],
       ),
     );
