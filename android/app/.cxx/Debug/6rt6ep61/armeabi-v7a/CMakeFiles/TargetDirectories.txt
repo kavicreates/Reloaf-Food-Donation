@@ -1,0 +1,2 @@
+C:/flutter/src/fooddonationapp/android/app/.cxx/Debug/6rt6ep61/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/flutter/src/fooddonationapp/android/app/.cxx/Debug/6rt6ep61/armeabi-v7a/CMakeFiles/rebuild_cache.dir
