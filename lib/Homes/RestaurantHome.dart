@@ -73,9 +73,19 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                 ElevatedButton(
                   onPressed: () async {
                     final user = FirebaseAuth.instance.currentUser;
+                    // Fetch user's document
+
+
+
+
                     if (user != null &&
                         nameController.text.isNotEmpty &&
                         quantityController.text.isNotEmpty) {
+                      DocumentSnapshot userDoc = await _firestore
+                          .collection("users")
+                          .doc(user.uid)
+                          .get();
+                      GeoPoint? userLocation = userDoc.get("location");
                       await _firestore
                           .collection("users")
                           .doc(user.uid)
@@ -87,6 +97,7 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                         "type": selectedType,
                         "timestamp": FieldValue.serverTimestamp(),
                         "status": "draft",
+                        "location":userLocation
                       });
                       Navigator.pop(context);
                     }
