@@ -74,10 +74,6 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                   onPressed: () async {
                     final user = FirebaseAuth.instance.currentUser;
                     // Fetch user's document
-
-
-
-
                     if (user != null &&
                         nameController.text.isNotEmpty &&
                         quantityController.text.isNotEmpty) {
@@ -89,6 +85,17 @@ class _RestaurantHomeState extends State<RestaurantHome> {
                       await _firestore
                           .collection("users")
                           .doc(user.uid)
+                          .collection("food")
+                          .add({
+                        "name": nameController.text,
+                        "description": descController.text,
+                        "quantity": quantityController.text,
+                        "type": selectedType,
+                        "timestamp": FieldValue.serverTimestamp(),
+                        "status": "draft",
+                        "location":userLocation
+                      });
+                      await _firestore
                           .collection("food")
                           .add({
                         "name": nameController.text,
